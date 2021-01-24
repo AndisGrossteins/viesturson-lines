@@ -1,0 +1,36 @@
+{
+    "name": "viesturson-lines",
+    "version": "1.0.0",
+    "description": "Draw squigly lines based on an image and generate SVG paths to use for drawing on Raspberry Pi powered vertical plotter",
+    "main": "index.js",
+    "directories": {
+        "lib": "lib"
+    },
+    "dependencies": {
+        "p5": "^1.2.0",
+        "p5-runner": "^1.2.1"
+    },
+    "devDependencies": {
+        "yarn": "1.22.10"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/AndisGrossteins/viesturson-lines.git"
+    },
+    "keywords": [
+        "drawing",
+        "p5.js",
+        "svg",
+        "vector",
+        "plotter"
+    ],
+    "author": "Andis",
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/AndisGrossteins/viesturson-lines/issues"
+    },
+    "homepage": "https://github.com/AndisGrossteins/viesturson-lines#readme"
+}
