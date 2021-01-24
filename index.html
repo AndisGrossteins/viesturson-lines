@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <title>Something, something</title>
+
+    <script src="lib/p5-0.7.3.js"></script>
+
+    <script src="lib/p5.dom-0.7.3.js"></script>
+
+    <style>
+        body {
+            background-color: rgb(209, 209, 209);
+            font-family: sans-serif;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .toolbox-modal {
+            min-height: 10vh;
+            position: absolute;
+            z-index: 99999;
+            top: 80vh;
+            left: 1vw;
+        }
+        
+        #theLink {
+            font-size: 2em;
+        }
+        
+        img.svg {
+            height: auto;
+            max-width: 95vw;
+            position: absolute;
+            top: 2.5vw;
+            z-index: 42;
+        }
+        
+        #gay-bar {
+            width: 99vw;
+        }
+        
+        input[type=file] {
+            font-size: 2em;
+            position: absolute;
+            top: 1vh;
+            right: 1vw;
+        }
+    </style>
+</head>
+
+
+<body>
+    <script>
+        var progressBar;
+        var allPoints = [];
+        var allPointsClone = [];
+        var img;
+        var finalDrawOrder = [];
+        var inReach = [];
+        var currentPoint;
+        var speedUp = 1;
+        var rerun = false;
+        var maxReach = 100;
+        finalDrawOrder[0] = currentPoint;
+        var colorCounter = 0;
+
+        var SVGcurve = '';
+        var SVGwidth = 1000,
+            SVGheight = 1000;
+
+        function preload() {
+            //img = loadImage("./base11.png");
+        }
+
+        var startingLength;
+
+
+        function handleFile(file) {
+            print(file);
+            if (file.type === 'image') {
+
+                progressBar = document.getElementById('gay-bar');
+                progressBar.value = 0;
+
+                img = loadImage(file.data,
+                    function() {
+
+                        console.log("Loaded image", img);
+
+                        image(img, 0, 0);
+
+                        var resFac = 1000 / img.height;
+                        resizeCanvas(img.width * resFac, 1000);
+
+                        image(img, 0, 0, width + 1, height + 1);
+
+                        SVGwidth = width;
+                        SVGheight = height;
+
+                        filter(POSTERIZE, 8);
+                        filter(GRAY);
+
+                        redraw();
+
+                        generatePoints(10);
+                        allPoints = ShufflePoints(allPoints);
+
+                        //clear();
+
+                        currentPoint = allPoints[0];
+                        startingLength = allPoints.length;
+
+                        noFill();
+                        background(253, 255, 237);
+                        //	background(240,240,240);
+                        strokeWeight(0.4);
+                        //  strokeWeight(2);
+                        stroke(14, 25, 92);
+
+                        cloneAllPoints();
+
+                        var theButton = document.getElementById('get_svg_btn');
+                        theButton.click = function(event) {
+                            SVGout();
+                        }
+                    },
+                    function(e) {
+                        console.error("Failed loading image", e);
+                    }
+                );
+
+
+            } else {
+                img = null;
+            }
+        }
+
+        function SVGout() {
+            var SVGoutput = document.getElementById('svg_output');
+
+            var SVGsrc = `<svg width="${SVGwidth}" height="${SVGheight}" viewBox="0 0 ${SVGwidth} ${SVGheight}" fill="none" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                <path style="stroke:#000; stroke-width:1" d="${SVGcurve}" id="the-curve" />
+                </svg>`;
+            SVGoutput.value = SVGsrc;
+
+            var dataUri = "data:image/svg+xml;base64," + btoa(SVGsrc);
+
+            var theLink = document.getElementById('theLink') || document.createElement('a');
+
+            theLink.innerText = 'SAVE THE SVG!';
+            theLink.id = 'theLink';
+            theLink.href = dataUri;
+
+            SVGoutput.parentElement.appendChild(theLink);
+
+            var theSVGimg = document.querySelector('img.svg');
+
+            if (!theSVGimg) {
+                theSVGimg = document.createElement('img');
+                theSVGimg.className = 'svg';
+                document.documentElement.appendChild(theSVGimg);
+            }
+
+            theSVGimg.src = dataUri;
+
+        }
+
+        function setup() {
+            var fileInput = createFileInput(handleFile);
+
+            //document.querySelector('.toolbox-modal').appendChild(fileInput);
+
+            createCanvas(1000, 800);
+
+            // Keep reference to the OG curve() function from p5.js
+            var p5_curve = curve;
+
+            // Redefine the curve() function
+            curve = function(x1, y1, x2, y2, x3, y3, x4, y4) {
+                /**
+                 * SVG curves
+                 * C x1 y1, x2 y2, x y
+                 *  - (x,y) specify where the line should end
+                 *  - (x1,y1) is the control point for the start of the curve
+                 *  - (x2,y2) is the control point for the end
+                 */
+
+                if (SVGcurve === '') {
+                    SVGcurve = `M ${x2},${y2} C ${x2},${y2} ${x3},${y3} ${x4},${y4} `;
+                } else {
+                    SVGcurve += `${x2},${y2} ${x3},${y3} ${x4},${y4} `;
+                }
+
+
+                /**
+                 *
+                 * p5.js curve() parameters
+                        x1 Number: x-coordinate for the beginning control point
+                        y1 Number: y-coordinate for the beginning control point
+                        x2 Number: x-coordinate for the first point
+                        y2 Number: y-coordinate for the first point
+                        x3 Number: x-coordinate for the second point
+                        y3 Number: y-coordinate for the second point
+                        x4 Number: x-coordinate for the ending control point
+                        y4 Number: y-coordinate for the ending control point
+                */
+
+                p5_curve(x1, y1, x2, y2, x3, y3, x4, y4);
+
+            }
+
+            var button = createButton('Get SVG');
+            //button.position(19, 19);
+            button.mousePressed(SVGout);
+
+            /*
+             var resFac = 1000/img.height;
+             createCanvas(img.width*resFac, 1000);
+             
+             image(img, 0, 0,width+1,height+1);
+             filter(POSTERIZE,8);
+             filter(GRAY);
+             redraw();
+
+             generatePoints(6);
+             allPoints = ShufflePoints(allPoints);
+             
+             clear();
+             
+             currentPoint = allPoints[0];
+             startingLength = allPoints.length;
+             
+             
+             noFill();
+             strokeWeight(1);
+             stroke(40,30,40,70);
+
+             cloneAllPoints();
+             */
+        }
+
+        function cloneAllPoints() {
+            for (var i = 0; i < allPoints.length; i++) {
+                allPointsClone[i] = allPoints[i];
+            }
+        }
+
+        function mouseClicked() {
+            console.log(`Brightness at [x:${mouseX} y:${mouseY}]: `, brightness(get(mouseX, mouseY)));
+        }
+
+        function restartDrawing() {
+            finalDrawOrder = [];
+            allPointsClone = [];
+            cloneAllPoints();
+            currentPoint = allPoints[0];
+            finalDrawOrder[0] = currentPoint;
+
+            switch (colorCounter) {
+                case 0:
+                    stroke(150, 10, 10, 80);
+                    break;
+                case 1:
+                    stroke(10, 150, 10, 80);
+                    break;
+                case 2:
+                    stroke(10, 10, 150, 80);
+                    break;
+                case 3:
+                    stroke(40, 40, 40, 70);
+                    break;
+                case 4:
+                    stroke(40, 40, 40, 70);
+                    break;
+            }
+            colorCounter++;
+        }
+
+        function draw() {
+
+            if (allPointsClone.length > 5) {
+                //console.log(allPointsClone.length / startingLength);
+                progressBar.value = (allPointsClone.length / startingLength) * 100;
+
+                for (var repe = 0; repe < speedUp; repe++) {
+                    inReach = [];
+                    for (var i = 0; i < allPointsClone.length; i++) {
+                        if (dist(currentPoint.xpos, currentPoint.ypos, allPointsClone[i].xpos, allPointsClone[i].ypos) < maxReach) {
+                            append(inReach, i);
+                        }
+                    }
+                    if (inReach.length == 0) {
+                        maxReach += 10;
+                    } else {
+                        maxReach = 25;
+                        //	maxReach = 100;
+
+                        var toMoveIndex = inReach[Math.floor(Math.random() * inReach.length)]
+                        append(finalDrawOrder, allPointsClone[toMoveIndex]);
+                        currentPoint = allPointsClone[toMoveIndex];
+                        allPointsClone.splice(toMoveIndex, 1);
+                        if (finalDrawOrder.length > 5) {
+                            let p1 = {
+                                    x: finalDrawOrder[finalDrawOrder.length - 1].xpos,
+                                    y: finalDrawOrder[finalDrawOrder.length - 1].ypos
+                                },
+                                p2 = {
+                                    x: finalDrawOrder[finalDrawOrder.length - 2].xpos,
+                                    y: finalDrawOrder[finalDrawOrder.length - 2].ypos
+                                };
+                            let p3 = {
+                                    x: finalDrawOrder[finalDrawOrder.length - 3].xpos,
+                                    y: finalDrawOrder[finalDrawOrder.length - 3].ypos
+                                },
+                                p4 = {
+                                    x: finalDrawOrder[finalDrawOrder.length - 4].xpos,
+                                    y: finalDrawOrder[finalDrawOrder.length - 4].ypos
+                                };
+
+                            // Čau vecais!   :)
+
+                            curve(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
+
+                        }
+
+                    }
+                    // var item = items[Math.floor(Math.random()*items.length)];
+                }
+
+            }
+
+        }
+
+        function ShufflePoints(a) {
+            var j, x, i;
+            for (i = a.length - 1; i > 0; i--) {
+                j = Math.floor(Math.random() * (i + 1));
+                x = a[i];
+                a[i] = a[j];
+                a[j] = x;
+            }
+            return a;
+        }
+
+
+        //too inefficient
+        function generatePoints(skips) {
+            for (var x = 0; x < width; x += skips) {
+                for (var y = 0; y < height; y += skips) {
+                    if (random(0, 90) > brightness(get(x, y))) {
+                        //set(x, y, color(200, 0, 0));
+                        var insertPoint = allPoints.length;
+                        var holder = {};
+                        holder.xpos = x;
+                        holder.ypos = y;
+                        allPoints[insertPoint] = holder;
+                    }
+                }
+
+                //console.log("Progress on finding Points: " + x / width);
+                progressBar.value = x / width * 100;
+                progressBar.innerText = `${x / width * 100} %`;
+            }
+        }
+    </script>
+
+    <progress id="gay-bar" max="100" value="0"> 0% </progress>
+    <div class="toolbox-modal">
+        <p>
+            <button id="get_svg_btn" onclick="SVGout();">Get SVG</button>
+        </p>
+        <p>
+            <label for="svg_output">The SVG path:
+                <textarea id="svg_output" style="width: 80vw; min-height: 10vh;" readonly></textarea>
+            </label>
+        </p>
+    </div>
+</body>
+
+</html>
